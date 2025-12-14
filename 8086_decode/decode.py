@@ -84,17 +84,17 @@ def get_mod(byte: int) -> int:
 
 
 def get_reg(d_bit: int, w_bit: int, destination: bool, byte: int) -> str:
-    target_bit_start = 3 if (bool(destination) == bool(d_bit)) else 0
+    target_bit_start = 3 if (destination == bool(d_bit)) else 0
 
     reg_bits = (byte >> target_bit_start) & 0b111
-    key = (reg_bits << 1) | (w_bit & 1)
+    key = (reg_bits << 1) | w_bit
 
     return REG_LOOKUP[key]
 
 
 def get_reg_imm(w_bit: int, byte: int) -> int:
     reg_bits = byte & 0b111
-    key = (reg_bits << 1) | (w_bit & 1)
+    key = (reg_bits << 1) | w_bit
 
     return REG_LOOKUP[key]
 
@@ -150,7 +150,7 @@ def get_operands(chunk: bytes, operation: str) -> str:
         elif mod == 0b01:
             r_m = chunk[1] & 0b111
             r_m_text = R_M_LOOKUP[r_m]
-            displacement = to_signed(chunk[2] & 0b11111111, 8)
+            displacement = to_signed(chunk[2], 8)
             mem_addr = format_memory_address(r_m_text, displacement)
 
             if d_bit:
@@ -175,9 +175,7 @@ def get_operands(chunk: bytes, operation: str) -> str:
         w_bit = (chunk[0] >> 3) & 1
         dst = get_reg_imm(w_bit, chunk[0])
         data = read_le16(chunk[1], chunk[2]) if w_bit else chunk[1]
-        immediate = data & 0b1111111111111111 if w_bit else data & 0b11111111
-
-        immediate = to_signed(immediate, 16 if w_bit else 8)
+        immediate = to_signed(data, 16 if w_bit else 8)
 
         return f"{dst}, {immediate}"
     elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_BYTE"]:
@@ -206,12 +204,7 @@ def get_operands(chunk: bytes, operation: str) -> str:
     elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_WORD"]:
         mod = get_mod(chunk[1])
         r_m = chunk[1] & 0b111
-        immediate = to_signed(
-            read_le16(chunk[-2], chunk[-1])
-            if mod == 0b11
-            else read_le16(chunk[-2], chunk[-1]),
-            16,
-        )
+        immediate = to_signed(read_le16(chunk[-2], chunk[-1]), 16)
 
         if mod == 0b11:
             dst = get_reg(1, 1, True, chunk[1])
@@ -248,9 +241,7 @@ def read_additional_chunks(
     if operation == INTRUCTION_TYPE_TO_TEXT["MOV"]:
         additional_chunk = file.read(1)
         mod = get_mod(additional_chunk[0])
-        if mod == 0b11:
-            pass
-        elif mod == 0b00:
+        if mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
                 additional_chunk += file.read(2)
