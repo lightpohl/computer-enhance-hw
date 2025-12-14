@@ -31,6 +31,15 @@ R_M_LOOKUP = {
     0b111: "bx",
 }
 
+INSTRUCTION_TYPES = {
+    "MOV": "MOV",
+    "MOV_IMM": "MOV_IMM",
+    "MOV_IMM_MEM_BYTE": "MOV_IMM_MEM_BYTE",
+    "MOV_IMM_MEM_WORD": "MOV_IMM_MEM_WORD",
+    "MOV_MEM_ACC": "MOV_MEM_ACC",
+    "MOV_ACC_MEM": "MOV_ACC_MEM",
+}
+
 INSTRUCTION_TYPE_TO_OP_CODE = {
     "MOV": "100010",
     "MOV_IMM": "1011",
@@ -40,16 +49,7 @@ INSTRUCTION_TYPE_TO_OP_CODE = {
     "MOV_ACC_MEM": "10100011",
 }
 
-INTRUCTION_TYPE_TO_TEXT = {
-    "MOV": "MOV",
-    "MOV_IMM": "MOV_IMM",
-    "MOV_IMM_MEM_BYTE": "MOV_IMM_MEM_BYTE",
-    "MOV_IMM_MEM_WORD": "MOV_IMM_MEM_WORD",
-    "MOV_MEM_ACC": "MOV_MEM_ACC",
-    "MOV_ACC_MEM": "MOV_ACC_MEM",
-}
-
-INSTRUCTION_TYPE_TEXT_TO_OP = {
+INSTRUCTION_TYPE_TO_OP = {
     "MOV": "mov",
     "MOV_IMM": "mov",
     "MOV_IMM_MEM_BYTE": "mov",
@@ -64,17 +64,17 @@ def get_operation(chunk: bytes) -> str:
     binary_string = f"{byte:08b}"
 
     if binary_string == INSTRUCTION_TYPE_TO_OP_CODE["MOV_IMM_MEM_BYTE"]:
-        return INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_BYTE"]
+        return INSTRUCTION_TYPES["MOV_IMM_MEM_BYTE"]
     elif binary_string == INSTRUCTION_TYPE_TO_OP_CODE["MOV_IMM_MEM_WORD"]:
-        return INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_WORD"]
+        return INSTRUCTION_TYPES["MOV_IMM_MEM_WORD"]
     elif binary_string == INSTRUCTION_TYPE_TO_OP_CODE["MOV_MEM_ACC"]:
-        return INTRUCTION_TYPE_TO_TEXT["MOV_MEM_ACC"]
+        return INSTRUCTION_TYPES["MOV_MEM_ACC"]
     elif binary_string == INSTRUCTION_TYPE_TO_OP_CODE["MOV_ACC_MEM"]:
-        return INTRUCTION_TYPE_TO_TEXT["MOV_ACC_MEM"]
+        return INSTRUCTION_TYPES["MOV_ACC_MEM"]
     elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE["MOV"]):
-        return INTRUCTION_TYPE_TO_TEXT["MOV"]
+        return INSTRUCTION_TYPES["MOV"]
     elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE["MOV_IMM"]):
-        return INTRUCTION_TYPE_TO_TEXT["MOV_IMM"]
+        return INSTRUCTION_TYPES["MOV_IMM"]
     else:
         raise Exception(f"unsupported op_code: 0x{byte:02x} ({binary_string})")
 
@@ -123,7 +123,7 @@ def format_memory_address(r_m_text: str, displacement: int) -> str:
 
 
 def get_operands(chunk: bytes, operation: str) -> str:
-    if operation == INTRUCTION_TYPE_TO_TEXT["MOV"]:
+    if operation == INSTRUCTION_TYPES["MOV"]:
         mod = get_mod(chunk[1])
         d_bit = (chunk[0] >> 1) & 1
         w_bit = chunk[0] & 1
@@ -171,14 +171,14 @@ def get_operands(chunk: bytes, operation: str) -> str:
             else:
                 src = get_reg(d_bit, w_bit, False, chunk[1])
                 return f"{mem_addr}, {src}"
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM"]:
         w_bit = (chunk[0] >> 3) & 1
         dst = get_reg_imm(w_bit, chunk[0])
         data = read_le16(chunk[1], chunk[2]) if w_bit else chunk[1]
         immediate = to_signed(data, 16 if w_bit else 8)
 
         return f"{dst}, {immediate}"
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_BYTE"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM_MEM_BYTE"]:
         mod = get_mod(chunk[1])
         r_m = chunk[1] & 0b111
         immediate = to_signed(chunk[2] if mod == 0b11 else chunk[-1], 8)
@@ -201,7 +201,7 @@ def get_operands(chunk: bytes, operation: str) -> str:
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
             return f"{format_memory_address(r_m_text, displacement)}, byte {immediate}"
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_WORD"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM_MEM_WORD"]:
         mod = get_mod(chunk[1])
         r_m = chunk[1] & 0b111
         immediate = to_signed(read_le16(chunk[-2], chunk[-1]), 16)
@@ -224,10 +224,10 @@ def get_operands(chunk: bytes, operation: str) -> str:
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
             return f"{format_memory_address(r_m_text, displacement)}, word {immediate}"
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_MEM_ACC"]:
+    elif operation == INSTRUCTION_TYPES["MOV_MEM_ACC"]:
         displacement = read_le16(chunk[1], chunk[2])
         return f"ax, [{displacement}]"
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_ACC_MEM"]:
+    elif operation == INSTRUCTION_TYPES["MOV_ACC_MEM"]:
         displacement = read_le16(chunk[1], chunk[2])
         return f"[{displacement}], ax"
 
@@ -238,7 +238,7 @@ def read_additional_chunks(
     file: BinaryIO, operation: str, base_chunk: bytes
 ) -> Optional[bytes]:
     additional_chunk = None
-    if operation == INTRUCTION_TYPE_TO_TEXT["MOV"]:
+    if operation == INSTRUCTION_TYPES["MOV"]:
         additional_chunk = file.read(1)
         mod = get_mod(additional_chunk[0])
         if mod == 0b00:
@@ -249,10 +249,10 @@ def read_additional_chunks(
             additional_chunk += file.read(1)
         elif mod == 0b10:
             additional_chunk += file.read(2)
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM"]:
         w_bit = (base_chunk[0] >> 3) & 1
         additional_chunk = file.read(2 if w_bit else 1)
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_BYTE"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM_MEM_BYTE"]:
         additional_chunk = file.read(1)
         mod = get_mod(additional_chunk[0])
         if mod == 0b11:
@@ -266,7 +266,7 @@ def read_additional_chunks(
             additional_chunk += file.read(2)
         elif mod == 0b10:
             additional_chunk += file.read(3)
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_IMM_MEM_WORD"]:
+    elif operation == INSTRUCTION_TYPES["MOV_IMM_MEM_WORD"]:
         additional_chunk = file.read(1)
         mod = get_mod(additional_chunk[0])
         if mod == 0b11:
@@ -280,9 +280,9 @@ def read_additional_chunks(
             additional_chunk += file.read(3)
         elif mod == 0b10:
             additional_chunk += file.read(4)
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_MEM_ACC"]:
+    elif operation == INSTRUCTION_TYPES["MOV_MEM_ACC"]:
         additional_chunk = file.read(2)
-    elif operation == INTRUCTION_TYPE_TO_TEXT["MOV_ACC_MEM"]:
+    elif operation == INSTRUCTION_TYPES["MOV_ACC_MEM"]:
         additional_chunk = file.read(2)
 
     return additional_chunk
@@ -312,7 +312,7 @@ def main():
                 chunk += additional_chunk
 
             operands = get_operands(chunk, operation)
-            print(f"{INSTRUCTION_TYPE_TEXT_TO_OP[operation]} {operands}")
+            print(f"{INSTRUCTION_TYPE_TO_OP[operation]} {operands}")
 
 
 if __name__ == "__main__":
