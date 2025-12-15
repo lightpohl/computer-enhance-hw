@@ -247,15 +247,15 @@ def get_operation(chunk: bytes) -> InstructionType:
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_IMM_MEM]
     ):
         return InstructionType.MOV_IMM_MEM
-    elif binary_string.startswith(
+    if binary_string.startswith(
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_MEM_ACC]
     ):
         return InstructionType.MOV_MEM_ACC
-    elif binary_string.startswith(
+    if binary_string.startswith(
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_ACC_MEM]
     ):
         return InstructionType.MOV_ACC_MEM
-    elif binary_string.startswith(IMM_TO_RM_OPCODE):
+    if binary_string.startswith(IMM_TO_RM_OPCODE):
         local_op_code = get_local_op_code(chunk[1])
         if local_op_code == 0b000:
             return InstructionType.ADD_IMM_MEM
@@ -265,74 +265,70 @@ def get_operation(chunk: bytes) -> InstructionType:
             return InstructionType.CMP_IMM_MEM
         else:
             raise Exception(f"unsupported local op_code: {local_op_code}")
-    elif binary_string.startswith(
+    if binary_string.startswith(
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.ADD_IMM_ACC]
     ):
         return InstructionType.ADD_IMM_ACC
-    elif binary_string.startswith(
+    if binary_string.startswith(
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.SUB_IMM_ACC]
     ):
         return InstructionType.SUB_IMM_ACC
-    elif binary_string.startswith(
+    if binary_string.startswith(
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.CMP_IMM_ACC]
     ):
         return InstructionType.CMP_IMM_ACC
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.ADD]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.ADD]):
         return InstructionType.ADD
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.SUB]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.SUB]):
         return InstructionType.SUB
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.CMP]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.CMP]):
         return InstructionType.CMP
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_IMM]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_IMM]):
         return InstructionType.MOV_IMM
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV]):
         return InstructionType.MOV
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JE]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JE]):
         return InstructionType.JMP_JE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JL]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JL]):
         return InstructionType.JMP_JL
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JLE]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JLE]):
         return InstructionType.JMP_JLE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JB]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JB]):
         return InstructionType.JMP_JB
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JBE]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JBE]):
         return InstructionType.JMP_JBE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JP]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JP]):
         return InstructionType.JMP_JP
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JO]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JO]):
         return InstructionType.JMP_JO
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JS]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JS]):
         return InstructionType.JMP_JS
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNE]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNE]):
         return InstructionType.JMP_JNE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNL]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNL]):
         return InstructionType.JMP_JNL
-    elif binary_string.startswith(
-        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNLE]
-    ):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNLE]):
         return InstructionType.JMP_JNLE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNB]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNB]):
         return InstructionType.JMP_JNB
-    elif binary_string.startswith(
-        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNBE]
-    ):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNBE]):
         return InstructionType.JMP_JNBE
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNP]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNP]):
         return InstructionType.JMP_JNP
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNO]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNO]):
         return InstructionType.JMP_JNO
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNS]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNS]):
         return InstructionType.JMP_JNS
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOP]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOP]):
         return InstructionType.LOOP
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPZ]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPZ]):
         return InstructionType.LOOPZ
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPNZ]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPNZ]):
         return InstructionType.LOOPNZ
-    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JCXZ]):
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JCXZ]):
         return InstructionType.JCXZ
-    else:
-        raise Exception(f"unsupported op_code: {binary_string}")
+
+    raise Exception(f"unsupported op_code: {binary_string}")
 
 
 def get_mod(byte: int) -> int:
@@ -376,10 +372,11 @@ def to_signed(value: int, bits: int) -> int:
 def format_memory_address(r_m_text: str, displacement: int) -> str:
     if displacement == 0:
         return f"[{r_m_text}]"
-    elif displacement < 0:
+
+    if displacement < 0:
         return f"[{r_m_text} - {abs(displacement)}]"
-    else:
-        return f"[{r_m_text} + {displacement}]"
+
+    return f"[{r_m_text} + {displacement}]"
 
 
 def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
@@ -465,14 +462,16 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
             else:
                 src = get_reg(d_bit, w_bit, False, chunk[1])
                 return f"{mem_addr}, {src}"
-    elif operation == InstructionType.MOV_IMM:
+
+    if operation == InstructionType.MOV_IMM:
         w_bit = (chunk[0] >> 3) & 1
         dst = get_reg_imm(w_bit, chunk[0])
         data = read_le16(chunk[1], chunk[2]) if w_bit else chunk[1]
         immediate = to_signed(data, 16 if w_bit else 8)
 
         return f"{dst}, {immediate}"
-    elif operation in (
+
+    if operation in (
         InstructionType.ADD_IMM_ACC,
         InstructionType.SUB_IMM_ACC,
         InstructionType.CMP_IMM_ACC,
@@ -483,7 +482,8 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
         immediate = to_signed(data, 16 if w_bit else 8)
 
         return f"{dst}, {immediate}"
-    elif operation == InstructionType.MOV_IMM_MEM:
+
+    if operation == InstructionType.MOV_IMM_MEM:
         w_bit = chunk[0] & 1
         if w_bit:
             immediate_raw = read_le16(chunk[-2], chunk[-1])
@@ -491,7 +491,8 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
         else:
             immediate = to_signed(chunk[-1], 8)
         return format_imm_mem_operands(chunk, w_bit, immediate)
-    elif operation in (
+
+    if operation in (
         InstructionType.ADD_IMM_MEM,
         InstructionType.SUB_IMM_MEM,
         InstructionType.CMP_IMM_MEM,
@@ -505,13 +506,16 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
         else:
             immediate = to_signed(chunk[-1], 8)
         return format_imm_mem_operands(chunk, w_bit, immediate)
-    elif operation == InstructionType.MOV_MEM_ACC:
+
+    if operation == InstructionType.MOV_MEM_ACC:
         displacement = read_le16(chunk[1], chunk[2])
         return f"ax, [{displacement}]"
-    elif operation == InstructionType.MOV_ACC_MEM:
+
+    if operation == InstructionType.MOV_ACC_MEM:
         displacement = read_le16(chunk[1], chunk[2])
         return f"[{displacement}], ax"
-    elif operation in (
+
+    if operation in (
         InstructionType.JMP_JE,
         InstructionType.JMP_JL,
         InstructionType.JMP_JLE,
