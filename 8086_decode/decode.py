@@ -48,6 +48,26 @@ class InstructionType(str, Enum):
     CMP = "CMP"
     CMP_IMM_MEM = "CMP_IMM_MEM"
     CMP_IMM_ACC = "CMP_IMM_ACC"
+    JMP_JE = "JMP_JE"
+    JMP_JL = "JMP_JL"
+    JMP_JLE = "JMP_JLE"
+    JMP_JB = "JMP_JB"
+    JMP_JBE = "JMP_JBE"
+    JMP_JP = "JMP_JP"
+    JMP_JO = "JMP_JO"
+    JMP_JS = "JMP_JS"
+    JMP_JNE = "JMP_JNE"
+    JMP_JNL = "JMP_JNL"
+    JMP_JNLE = "JMP_JNLE"
+    JMP_JNB = "JMP_JNB"
+    JMP_JNBE = "JMP_JNBE"
+    JMP_JNP = "JMP_JNP"
+    JMP_JNO = "JMP_JNO"
+    JMP_JNS = "JMP_JNS"
+    LOOP = "LOOP"
+    LOOPZ = "LOOPZ"
+    LOOPNZ = "LOOPNZ"
+    JCXZ = "JCXZ"
 
 
 class LengthClass(str, Enum):
@@ -57,6 +77,7 @@ class LengthClass(str, Enum):
     MEM_ACC = "MEM_ACC"
     ACC_MEM = "ACC_MEM"
     ACC_IMM = "ACC_IMM"
+    JMP_SHORT = "JMP_SHORT"
 
 
 IMM_TO_RM_OPCODE = "100000"
@@ -75,6 +96,26 @@ INSTRUCTION_TYPE_TO_OP_CODE = {
     InstructionType.CMP: "001110",
     InstructionType.CMP_IMM_MEM: IMM_TO_RM_OPCODE,
     InstructionType.CMP_IMM_ACC: "0011110",
+    InstructionType.JMP_JE: "01110100",
+    InstructionType.JMP_JL: "01111100",
+    InstructionType.JMP_JLE: "01111110",
+    InstructionType.JMP_JB: "01110010",
+    InstructionType.JMP_JBE: "01110110",
+    InstructionType.JMP_JP: "01111010",
+    InstructionType.JMP_JO: "01110000",
+    InstructionType.JMP_JS: "01111000",
+    InstructionType.JMP_JNE: "01110101",
+    InstructionType.JMP_JNL: "01111101",
+    InstructionType.JMP_JNLE: "01111111",
+    InstructionType.JMP_JNB: "01110011",
+    InstructionType.JMP_JNBE: "01110111",
+    InstructionType.JMP_JNP: "01111011",
+    InstructionType.JMP_JNO: "01110001",
+    InstructionType.JMP_JNS: "01111001",
+    InstructionType.LOOPNZ: "11100000",
+    InstructionType.LOOPZ: "11100001",
+    InstructionType.LOOP: "11100010",
+    InstructionType.JCXZ: "11100011",
 }
 
 INSTRUCTION_TYPE_TO_OP = {
@@ -92,6 +133,26 @@ INSTRUCTION_TYPE_TO_OP = {
     InstructionType.CMP: "cmp",
     InstructionType.CMP_IMM_MEM: "cmp",
     InstructionType.CMP_IMM_ACC: "cmp",
+    InstructionType.JMP_JE: "je",
+    InstructionType.JMP_JL: "jl",
+    InstructionType.JMP_JLE: "jle",
+    InstructionType.JMP_JB: "jb",
+    InstructionType.JMP_JBE: "jbe",
+    InstructionType.JMP_JP: "jp",
+    InstructionType.JMP_JO: "jo",
+    InstructionType.JMP_JS: "js",
+    InstructionType.JMP_JNE: "jne",
+    InstructionType.JMP_JNL: "jnl",
+    InstructionType.JMP_JNLE: "jnle",
+    InstructionType.JMP_JNB: "jnb",
+    InstructionType.JMP_JNBE: "jnbe",
+    InstructionType.JMP_JNP: "jnp",
+    InstructionType.JMP_JNO: "jno",
+    InstructionType.JMP_JNS: "jns",
+    InstructionType.LOOP: "loop",
+    InstructionType.LOOPZ: "loopz",
+    InstructionType.LOOPNZ: "loopnz",
+    InstructionType.JCXZ: "jcxz",
 }
 
 
@@ -134,6 +195,46 @@ def get_length_class(byte: int) -> LengthClass:
         INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_ACC_MEM]
     ):
         return LengthClass.ACC_MEM
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JL]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JLE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JB]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JBE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JP]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JO]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JS]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNL]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNLE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNB]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNBE]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNP]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNO]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNS]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOP]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPZ]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPNZ]):
+        return LengthClass.JMP_SHORT
+    if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JCXZ]):
+        return LengthClass.JMP_SHORT
 
     raise Exception(f"unsupported op_code for length: {binary_string}")
 
@@ -186,6 +287,50 @@ def get_operation(chunk: bytes) -> InstructionType:
         return InstructionType.MOV_IMM
     elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV]):
         return InstructionType.MOV
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JE]):
+        return InstructionType.JMP_JE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JL]):
+        return InstructionType.JMP_JL
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JLE]):
+        return InstructionType.JMP_JLE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JB]):
+        return InstructionType.JMP_JB
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JBE]):
+        return InstructionType.JMP_JBE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JP]):
+        return InstructionType.JMP_JP
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JO]):
+        return InstructionType.JMP_JO
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JS]):
+        return InstructionType.JMP_JS
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNE]):
+        return InstructionType.JMP_JNE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNL]):
+        return InstructionType.JMP_JNL
+    elif binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNLE]
+    ):
+        return InstructionType.JMP_JNLE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNB]):
+        return InstructionType.JMP_JNB
+    elif binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNBE]
+    ):
+        return InstructionType.JMP_JNBE
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNP]):
+        return InstructionType.JMP_JNP
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNO]):
+        return InstructionType.JMP_JNO
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JNS]):
+        return InstructionType.JMP_JNS
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOP]):
+        return InstructionType.LOOP
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPZ]):
+        return InstructionType.LOOPZ
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.LOOPNZ]):
+        return InstructionType.LOOPNZ
+    elif binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JCXZ]):
+        return InstructionType.JCXZ
     else:
         raise Exception(f"unsupported op_code: {binary_string}")
 
@@ -366,6 +511,30 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
     elif operation == InstructionType.MOV_ACC_MEM:
         displacement = read_le16(chunk[1], chunk[2])
         return f"[{displacement}], ax"
+    elif operation in (
+        InstructionType.JMP_JE,
+        InstructionType.JMP_JL,
+        InstructionType.JMP_JLE,
+        InstructionType.JMP_JB,
+        InstructionType.JMP_JBE,
+        InstructionType.JMP_JP,
+        InstructionType.JMP_JO,
+        InstructionType.JMP_JS,
+        InstructionType.JMP_JNE,
+        InstructionType.JMP_JNL,
+        InstructionType.JMP_JNLE,
+        InstructionType.JMP_JNB,
+        InstructionType.JMP_JNBE,
+        InstructionType.JMP_JNP,
+        InstructionType.JMP_JNO,
+        InstructionType.JMP_JNS,
+        InstructionType.LOOP,
+        InstructionType.LOOPZ,
+        InstructionType.LOOPNZ,
+        InstructionType.JCXZ,
+    ):
+        offset = to_signed(chunk[1], 8)
+        return f"{offset}"
 
     raise Exception(f"unsupported operation: {operation}")
 
@@ -418,6 +587,8 @@ def read_additional_chunks(
         additional_chunk = file.read(2)
     elif length_class == LengthClass.ACC_MEM:
         additional_chunk = file.read(2)
+    elif length_class == LengthClass.JMP_SHORT:
+        additional_chunk = file.read(1)
 
     return additional_chunk
 
