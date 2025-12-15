@@ -409,11 +409,11 @@ def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
 
 
 def get_operands(chunk: bytes, operation: InstructionType) -> str:
-    if (
-        operation == InstructionType.MOV
-        or operation == InstructionType.ADD
-        or operation == InstructionType.SUB
-        or operation == InstructionType.CMP
+    if operation in (
+        InstructionType.MOV,
+        InstructionType.ADD,
+        InstructionType.SUB,
+        InstructionType.CMP,
     ):
         mod = get_mod(chunk[1])
         d_bit = (chunk[0] >> 1) & 1
