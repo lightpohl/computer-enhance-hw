@@ -1,6 +1,9 @@
+import argparse
 import sys
 from enum import Enum
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Dict, Optional
+
+SIM_REGISTERS: Dict[str, str] = {}
 
 REG_LOOKUP = {
     0b0000: "al",
@@ -236,7 +239,7 @@ def get_length_class(byte: int) -> LengthClass:
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JCXZ]):
         return LengthClass.JMP_SHORT
 
-    raise Exception(f"unsupported op_code for length: {binary_string}")
+    raise Exception(f"unsupported op_code: {binary_string}")
 
 
 def get_operation(chunk: bytes) -> InstructionType:
@@ -408,7 +411,27 @@ def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
         )
 
 
-def get_operands(chunk: bytes, operation: InstructionType) -> str:
+def update_register(
+    dst: str, src: Optional[str] = None, new_val: Optional[int] = None
+) -> str:
+    if src is None and new_val is None:
+        raise Exception("src or new_val must be provided")
+
+    if dst not in SIM_REGISTERS:
+        SIM_REGISTERS[dst] = 0
+
+    prev = SIM_REGISTERS[dst]
+    if src:
+        SIM_REGISTERS[dst] = SIM_REGISTERS[src]
+    else:
+        SIM_REGISTERS[dst] = new_val
+
+    return f" ; {dst}:{prev:#x}->{SIM_REGISTERS[dst]:#x}"
+
+
+def get_operands(
+    chunk: bytes, operation: InstructionType, simulate: Optional[bool]
+) -> str:
     if operation in (
         InstructionType.MOV,
         InstructionType.ADD,
@@ -422,7 +445,11 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
         if mod == 0b11:
             dst = get_reg(d_bit, w_bit, True, chunk[1])
             src = get_reg(d_bit, w_bit, False, chunk[1])
-            return f"{dst}, {src}"
+
+            result = f"{dst}, {src}"
+            if simulate:
+                result += update_register(dst, src=src)
+            return result
         elif mod == 0b00:
             r_m = chunk[1] & 0b111
             if r_m == 0b110:
@@ -469,7 +496,11 @@ def get_operands(chunk: bytes, operation: InstructionType) -> str:
         data = read_le16(chunk[1], chunk[2]) if w_bit else chunk[1]
         immediate = to_signed(data, 16 if w_bit else 8)
 
-        return f"{dst}, {immediate}"
+        result = f"{dst}, {immediate}"
+        if simulate:
+            result += update_register(dst, new_val=immediate)
+
+        return result
 
     if operation in (
         InstructionType.ADD_IMM_ACC,
@@ -598,13 +629,16 @@ def read_additional_chunks(
 
 
 def main():
-    file_path = sys.argv[1]
+    parser = argparse.ArgumentParser(prog="8086 Decoder")
+    parser.add_argument("-f", "--file")
+    parser.add_argument("-s", "--simulate", action="store_true")
+    args = parser.parse_args()
 
-    if not file_path:
-        print("no file_path provided")
+    if args.file is None:
+        print("no --file provided")
         sys.exit(1)
 
-    with open(file_path, "rb") as file:
+    with open(args.file, "rb") as file:
         print(f"; {file.name}:")
         print("bits 16")
 
@@ -621,8 +655,13 @@ def main():
                 chunk += additional_chunk
 
             operation = get_operation(chunk)
-            operands = get_operands(chunk, operation)
+            operands = get_operands(chunk, operation, args.simulate)
             print(f"{INSTRUCTION_TYPE_TO_OP[operation]} {operands}")
+
+        if args.simulate:
+            print("\nFinal registers:")
+            for key in SIM_REGISTERS:
+                print(f"\t{key}: {SIM_REGISTERS[key]:#x} ({SIM_REGISTERS[key]})")
 
 
 if __name__ == "__main__":
