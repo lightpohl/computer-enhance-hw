@@ -122,9 +122,9 @@ def update_simulation(
 
     if src:
         src_val = get_half_reg(src) if src in HALF_REGS else get_full_reg(src)
-        new_val = src_val
 
         if is_mov:
+            new_val = src_val
             return (
                 update_half_reg(dst, new_val)
                 if dst in HALF_REGS
@@ -137,23 +137,34 @@ def update_simulation(
 
         if is_add:
             new_val = dst_val + src_val
+            return (
+                (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                )
+                + update_flags(new_val, dst not in HALF_REGS)
+                if is_add or is_sub
+                else ""
+            )
 
         if is_sub:
             new_val = dst_val - src_val
-
-        return (
-            (
-                update_half_reg(dst, new_val)
-                if dst in HALF_REGS
-                else update_full_reg(dst, new_val)
+            return (
+                (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                )
+                + update_flags(new_val, dst not in HALF_REGS)
+                if is_add or is_sub
+                else ""
             )
-            + update_flags(new_val, dst not in HALF_REGS)
-            if is_add or is_sub
-            else ""
-        )
 
-    new_val = immediate
+        return ""
+
     if is_mov:
+        new_val = immediate
         return (
             update_half_reg(dst, new_val)
             if dst in HALF_REGS
