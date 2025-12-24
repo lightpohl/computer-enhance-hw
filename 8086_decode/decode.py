@@ -1,76 +1,18 @@
 import argparse
 import sys
 from enum import Enum
-from typing import BinaryIO, Dict, Optional
+from typing import BinaryIO, Optional
 
-SIM_REGISTERS: Dict[str, str] = {}
-
-REG_LOOKUP = {
-    0b0000: "al",
-    0b0001: "ax",
-    0b0010: "cl",
-    0b0011: "cx",
-    0b0100: "dl",
-    0b0101: "dx",
-    0b0110: "bl",
-    0b0111: "bx",
-    0b1000: "ah",
-    0b1001: "sp",
-    0b1010: "ch",
-    0b1011: "bp",
-    0b1100: "dh",
-    0b1101: "si",
-    0b1110: "bh",
-    0b1111: "di",
-}
-
-R_M_LOOKUP = {
-    0b000: "bx + si",
-    0b001: "bx + di",
-    0b010: "bp + si",
-    0b011: "bp + di",
-    0b100: "si",
-    0b101: "di",
-    0b110: "bp",
-    0b111: "bx",
-}
-
-
-class InstructionType(str, Enum):
-    MOV = "MOV"
-    MOV_IMM = "MOV_IMM"
-    MOV_IMM_MEM = "MOV_IMM_MEM"
-    MOV_MEM_ACC = "MOV_MEM_ACC"
-    MOV_ACC_MEM = "MOV_ACC_MEM"
-    ADD = "ADD"
-    ADD_IMM_MEM = "ADD_IMM_MEM"
-    ADD_IMM_ACC = "ADD_IMM_ACC"
-    SUB = "SUB"
-    SUB_IMM_MEM = "SUB_IMM_MEM"
-    SUB_IMM_ACC = "SUB_IMM_ACC"
-    CMP = "CMP"
-    CMP_IMM_MEM = "CMP_IMM_MEM"
-    CMP_IMM_ACC = "CMP_IMM_ACC"
-    JMP_JE = "JMP_JE"
-    JMP_JL = "JMP_JL"
-    JMP_JLE = "JMP_JLE"
-    JMP_JB = "JMP_JB"
-    JMP_JBE = "JMP_JBE"
-    JMP_JP = "JMP_JP"
-    JMP_JO = "JMP_JO"
-    JMP_JS = "JMP_JS"
-    JMP_JNE = "JMP_JNE"
-    JMP_JNL = "JMP_JNL"
-    JMP_JNLE = "JMP_JNLE"
-    JMP_JNB = "JMP_JNB"
-    JMP_JNBE = "JMP_JNBE"
-    JMP_JNP = "JMP_JNP"
-    JMP_JNO = "JMP_JNO"
-    JMP_JNS = "JMP_JNS"
-    LOOP = "LOOP"
-    LOOPZ = "LOOPZ"
-    LOOPNZ = "LOOPNZ"
-    JCXZ = "JCXZ"
+from shared import (
+    IMM_TO_RM_OPCODE,
+    INSTRUCTION_TYPE_TO_OP,
+    INSTRUCTION_TYPE_TO_OP_CODE,
+    REG_LOOKUP,
+    R_M_LOOKUP,
+    SEG_REG_LOOKUP,
+    InstructionType,
+)
+from simulation import SIM_REGISTERS, update_register
 
 
 class LengthClass(str, Enum):
@@ -83,86 +25,18 @@ class LengthClass(str, Enum):
     JMP_SHORT = "JMP_SHORT"
 
 
-IMM_TO_RM_OPCODE = "100000"
-INSTRUCTION_TYPE_TO_OP_CODE = {
-    InstructionType.MOV: "100010",
-    InstructionType.MOV_IMM: "1011",
-    InstructionType.MOV_IMM_MEM: "1100011",
-    InstructionType.MOV_MEM_ACC: "10100001",
-    InstructionType.MOV_ACC_MEM: "10100011",
-    InstructionType.ADD: "000000",
-    InstructionType.ADD_IMM_MEM: IMM_TO_RM_OPCODE,
-    InstructionType.ADD_IMM_ACC: "0000010",
-    InstructionType.SUB: "001010",
-    InstructionType.SUB_IMM_MEM: IMM_TO_RM_OPCODE,
-    InstructionType.SUB_IMM_ACC: "0010110",
-    InstructionType.CMP: "001110",
-    InstructionType.CMP_IMM_MEM: IMM_TO_RM_OPCODE,
-    InstructionType.CMP_IMM_ACC: "0011110",
-    InstructionType.JMP_JE: "01110100",
-    InstructionType.JMP_JL: "01111100",
-    InstructionType.JMP_JLE: "01111110",
-    InstructionType.JMP_JB: "01110010",
-    InstructionType.JMP_JBE: "01110110",
-    InstructionType.JMP_JP: "01111010",
-    InstructionType.JMP_JO: "01110000",
-    InstructionType.JMP_JS: "01111000",
-    InstructionType.JMP_JNE: "01110101",
-    InstructionType.JMP_JNL: "01111101",
-    InstructionType.JMP_JNLE: "01111111",
-    InstructionType.JMP_JNB: "01110011",
-    InstructionType.JMP_JNBE: "01110111",
-    InstructionType.JMP_JNP: "01111011",
-    InstructionType.JMP_JNO: "01110001",
-    InstructionType.JMP_JNS: "01111001",
-    InstructionType.LOOPNZ: "11100000",
-    InstructionType.LOOPZ: "11100001",
-    InstructionType.LOOP: "11100010",
-    InstructionType.JCXZ: "11100011",
-}
-
-INSTRUCTION_TYPE_TO_OP = {
-    InstructionType.MOV: "mov",
-    InstructionType.MOV_IMM: "mov",
-    InstructionType.MOV_IMM_MEM: "mov",
-    InstructionType.MOV_MEM_ACC: "mov",
-    InstructionType.MOV_ACC_MEM: "mov",
-    InstructionType.ADD: "add",
-    InstructionType.ADD_IMM_MEM: "add",
-    InstructionType.ADD_IMM_ACC: "add",
-    InstructionType.SUB: "sub",
-    InstructionType.SUB_IMM_MEM: "sub",
-    InstructionType.SUB_IMM_ACC: "sub",
-    InstructionType.CMP: "cmp",
-    InstructionType.CMP_IMM_MEM: "cmp",
-    InstructionType.CMP_IMM_ACC: "cmp",
-    InstructionType.JMP_JE: "je",
-    InstructionType.JMP_JL: "jl",
-    InstructionType.JMP_JLE: "jle",
-    InstructionType.JMP_JB: "jb",
-    InstructionType.JMP_JBE: "jbe",
-    InstructionType.JMP_JP: "jp",
-    InstructionType.JMP_JO: "jo",
-    InstructionType.JMP_JS: "js",
-    InstructionType.JMP_JNE: "jne",
-    InstructionType.JMP_JNL: "jnl",
-    InstructionType.JMP_JNLE: "jnle",
-    InstructionType.JMP_JNB: "jnb",
-    InstructionType.JMP_JNBE: "jnbe",
-    InstructionType.JMP_JNP: "jnp",
-    InstructionType.JMP_JNO: "jno",
-    InstructionType.JMP_JNS: "jns",
-    InstructionType.LOOP: "loop",
-    InstructionType.LOOPZ: "loopz",
-    InstructionType.LOOPNZ: "loopnz",
-    InstructionType.JCXZ: "jcxz",
-}
-
-
 def get_length_class(byte: int) -> LengthClass:
     binary_string = f"{byte:08b}"
 
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV]):
+        return LengthClass.REG_MEM
+    if binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_SEG_REG]
+    ):
+        return LengthClass.REG_MEM
+    if binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_REG_SEG]
+    ):
         return LengthClass.REG_MEM
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.ADD]):
         return LengthClass.REG_MEM
@@ -290,6 +164,14 @@ def get_operation(chunk: bytes) -> InstructionType:
         return InstructionType.MOV_IMM
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV]):
         return InstructionType.MOV
+    if binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_SEG_REG]
+    ):
+        return InstructionType.MOV_SEG_REG
+    if binary_string.startswith(
+        INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.MOV_REG_SEG]
+    ):
+        return InstructionType.MOV_REG_SEG
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JE]):
         return InstructionType.JMP_JE
     if binary_string.startswith(INSTRUCTION_TYPE_TO_OP_CODE[InstructionType.JMP_JL]):
@@ -411,24 +293,6 @@ def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
         )
 
 
-def update_register(
-    dst: str, src: Optional[str] = None, new_val: Optional[int] = None
-) -> str:
-    if src is None and new_val is None:
-        raise Exception("src or new_val must be provided")
-
-    if dst not in SIM_REGISTERS:
-        SIM_REGISTERS[dst] = 0
-
-    prev = SIM_REGISTERS[dst]
-    if src:
-        SIM_REGISTERS[dst] = SIM_REGISTERS[src]
-    else:
-        SIM_REGISTERS[dst] = new_val
-
-    return f" ; {dst}:{prev:#x}->{SIM_REGISTERS[dst]:#x}"
-
-
 def get_operands(
     chunk: bytes, operation: InstructionType, simulate: Optional[bool]
 ) -> str:
@@ -437,14 +301,35 @@ def get_operands(
         InstructionType.ADD,
         InstructionType.SUB,
         InstructionType.CMP,
+        InstructionType.MOV_SEG_REG,
+        InstructionType.MOV_REG_SEG,
     ):
         mod = get_mod(chunk[1])
-        d_bit = (chunk[0] >> 1) & 1
-        w_bit = chunk[0] & 1
+        is_seg_reg = operation in (
+            InstructionType.MOV_SEG_REG,
+            InstructionType.MOV_REG_SEG,
+        )
+        seg_reg_bits = (chunk[1] >> 3) & 0b111 if is_seg_reg else None
+        seg_reg = SEG_REG_LOOKUP[seg_reg_bits] if is_seg_reg else None
+
+        if is_seg_reg:
+            d_bit = operation == InstructionType.MOV_SEG_REG
+            w_bit = 1
+        else:
+            d_bit = (chunk[0] >> 1) & 1
+            w_bit = chunk[0] & 1
 
         if mod == 0b11:
-            dst = get_reg(d_bit, w_bit, True, chunk[1])
-            src = get_reg(d_bit, w_bit, False, chunk[1])
+            if is_seg_reg:
+                r_m = chunk[1] & 0b111
+                gen_reg = REG_LOOKUP[(r_m << 1) | 1]
+                if d_bit:
+                    dst, src = seg_reg, gen_reg
+                else:
+                    dst, src = gen_reg, seg_reg
+            else:
+                dst = get_reg(d_bit, w_bit, True, chunk[1])
+                src = get_reg(d_bit, w_bit, False, chunk[1])
 
             result = f"{dst}, {src}"
             if simulate:
@@ -459,36 +344,54 @@ def get_operands(
                 r_m_text = R_M_LOOKUP[r_m]
                 mem_addr = format_memory_address(r_m_text, 0)
 
-            if d_bit:
-                dst = get_reg(d_bit, w_bit, True, chunk[1])
-                return f"{dst}, {mem_addr}"
+            if is_seg_reg:
+                if d_bit:
+                    return f"{seg_reg}, {mem_addr}"
+                else:
+                    return f"{mem_addr}, {seg_reg}"
             else:
-                src = get_reg(d_bit, w_bit, False, chunk[1])
-                return f"{mem_addr}, {src}"
+                if d_bit:
+                    dst = get_reg(d_bit, w_bit, True, chunk[1])
+                    return f"{dst}, {mem_addr}"
+                else:
+                    src = get_reg(d_bit, w_bit, False, chunk[1])
+                    return f"{mem_addr}, {src}"
         elif mod == 0b01:
             r_m = chunk[1] & 0b111
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(chunk[2], 8)
             mem_addr = format_memory_address(r_m_text, displacement)
 
-            if d_bit:
-                dst = get_reg(d_bit, w_bit, True, chunk[1])
-                return f"{dst}, {mem_addr}"
+            if is_seg_reg:
+                if d_bit:
+                    return f"{seg_reg}, {mem_addr}"
+                else:
+                    return f"{mem_addr}, {seg_reg}"
             else:
-                src = get_reg(d_bit, w_bit, False, chunk[1])
-                return f"{mem_addr}, {src}"
+                if d_bit:
+                    dst = get_reg(d_bit, w_bit, True, chunk[1])
+                    return f"{dst}, {mem_addr}"
+                else:
+                    src = get_reg(d_bit, w_bit, False, chunk[1])
+                    return f"{mem_addr}, {src}"
         elif mod == 0b10:
             r_m = chunk[1] & 0b111
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
             mem_addr = format_memory_address(r_m_text, displacement)
 
-            if d_bit:
-                dst = get_reg(d_bit, w_bit, True, chunk[1])
-                return f"{dst}, {mem_addr}"
+            if is_seg_reg:
+                if d_bit:
+                    return f"{seg_reg}, {mem_addr}"
+                else:
+                    return f"{mem_addr}, {seg_reg}"
             else:
-                src = get_reg(d_bit, w_bit, False, chunk[1])
-                return f"{mem_addr}, {src}"
+                if d_bit:
+                    dst = get_reg(d_bit, w_bit, True, chunk[1])
+                    return f"{dst}, {mem_addr}"
+                else:
+                    src = get_reg(d_bit, w_bit, False, chunk[1])
+                    return f"{mem_addr}, {src}"
 
     if operation == InstructionType.MOV_IMM:
         w_bit = (chunk[0] >> 3) & 1
@@ -498,7 +401,7 @@ def get_operands(
 
         result = f"{dst}, {immediate}"
         if simulate:
-            result += update_register(dst, new_val=immediate)
+            result += update_register(dst, new_val=data)
 
         return result
 
