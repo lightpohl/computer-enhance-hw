@@ -1,47 +1,8 @@
 from enum import Enum
 from typing import BinaryIO, Optional
 
-from simulation import update_register
-
-
-class InstructionType(str, Enum):
-    MOV = "MOV"
-    MOV_IMM = "MOV_IMM"
-    MOV_IMM_MEM = "MOV_IMM_MEM"
-    MOV_MEM_ACC = "MOV_MEM_ACC"
-    MOV_ACC_MEM = "MOV_ACC_MEM"
-    ADD = "ADD"
-    ADD_IMM_MEM = "ADD_IMM_MEM"
-    ADD_IMM_ACC = "ADD_IMM_ACC"
-    SUB = "SUB"
-    SUB_IMM_MEM = "SUB_IMM_MEM"
-    SUB_IMM_ACC = "SUB_IMM_ACC"
-    CMP = "CMP"
-    CMP_IMM_MEM = "CMP_IMM_MEM"
-    CMP_IMM_ACC = "CMP_IMM_ACC"
-    JMP_JE = "JMP_JE"
-    JMP_JL = "JMP_JL"
-    JMP_JLE = "JMP_JLE"
-    JMP_JB = "JMP_JB"
-    JMP_JBE = "JMP_JBE"
-    JMP_JP = "JMP_JP"
-    JMP_JO = "JMP_JO"
-    JMP_JS = "JMP_JS"
-    JMP_JNE = "JMP_JNE"
-    JMP_JNL = "JMP_JNL"
-    JMP_JNLE = "JMP_JNLE"
-    JMP_JNB = "JMP_JNB"
-    JMP_JNBE = "JMP_JNBE"
-    JMP_JNP = "JMP_JNP"
-    JMP_JNO = "JMP_JNO"
-    JMP_JNS = "JMP_JNS"
-    LOOP = "LOOP"
-    LOOPZ = "LOOPZ"
-    LOOPNZ = "LOOPNZ"
-    JCXZ = "JCXZ"
-    MOV_SEG_REG = "MOV_SEG_REG"
-    MOV_REG_SEG = "MOV_REG_SEG"
-
+from simulation import update_simulation
+from utils import InstructionType, read_le16, to_signed
 
 REG_LOOKUP = {
     0b0000: "al",
@@ -385,20 +346,6 @@ def get_reg_imm(w_bit: int, byte: int) -> str:
     return REG_LOOKUP[key]
 
 
-def read_le16(low_byte: int, high_byte: int) -> int:
-    return low_byte | (high_byte << 8)
-
-
-def to_signed(value: int, bits: int) -> int:
-    if bits == 8:
-        if value >= 128:
-            return value - 256
-    elif bits == 16:
-        if value >= 32768:
-            return value - 65536
-    return value
-
-
 def format_memory_address(r_m_text: str, displacement: int) -> str:
     if displacement == 0:
         return f"[{r_m_text}]"
@@ -415,7 +362,8 @@ def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
     r_m = chunk[1] & 0b111
 
     if mod == 0b11:
-        dst = get_reg(1, w_bit, True, chunk[1])
+        reg_key = (r_m << 1) | w_bit
+        dst = REG_LOOKUP[reg_key]
         return f"{dst}, {size_text} {immediate}"
     elif mod == 0b00:
         if r_m == 0b110:
@@ -478,7 +426,7 @@ def get_operands(
 
             result = f"{dst}, {src}"
             if simulate:
-                result += update_register(dst, src=src)
+                result += update_simulation(dst, operation, src=src)
             return result
         elif mod == 0b00:
             r_m = chunk[1] & 0b111
@@ -546,7 +494,7 @@ def get_operands(
 
         result = f"{dst}, {immediate}"
         if simulate:
-            result += update_register(dst, new_val=data)
+            result += update_simulation(dst, operation, immediate=data)
 
         return result
 
@@ -582,9 +530,31 @@ def get_operands(
         if w_bit and not s_bit:
             immediate_raw = read_le16(chunk[-2], chunk[-1])
             immediate = to_signed(immediate_raw, 16)
+            immediate_for_sim = immediate_raw
+        elif w_bit and s_bit:
+            immediate_raw = chunk[-1]
+            immediate = to_signed(immediate_raw, 8)
+            immediate_for_sim = (
+                immediate_raw if immediate_raw < 128 else immediate_raw | 0xFF00
+            )
         else:
-            immediate = to_signed(chunk[-1], 8)
-        return format_imm_mem_operands(chunk, w_bit, immediate)
+            immediate_raw = chunk[-1]
+            immediate = to_signed(immediate_raw, 8)
+            immediate_for_sim = immediate_raw
+
+        mod = get_mod(chunk[1])
+        r_m = chunk[1] & 0b111
+        if mod == 0b11:
+            reg_key = (r_m << 1) | w_bit
+            dst = REG_LOOKUP[reg_key]
+        else:
+            dst = None
+
+        result = format_imm_mem_operands(chunk, w_bit, immediate)
+        if simulate and dst:
+            result += update_simulation(dst, operation, immediate=immediate_for_sim)
+
+        return result
 
     if operation == InstructionType.MOV_MEM_ACC:
         displacement = read_le16(chunk[1], chunk[2])

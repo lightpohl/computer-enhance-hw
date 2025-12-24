@@ -1,14 +1,14 @@
 import argparse
 import sys
 
-from shared import (
+from decoder import (
     INSTRUCTION_TYPE_TO_OP,
     get_length_class,
     get_operands,
     get_operation,
     read_additional_chunks,
 )
-from simulation import SIM_REGISTERS
+from simulation import SIM_REGISTERS, format_flags
 
 
 def main():
@@ -44,7 +44,11 @@ def main():
         if args.simulate:
             print("\nFinal registers:")
             for key in SIM_REGISTERS:
-                print(f"\t{key}: {SIM_REGISTERS[key]:#x} ({SIM_REGISTERS[key]})")
+                val = SIM_REGISTERS[key]
+                print(f"\t{key}: {val:#06x} ({val})")
+            flags_str = format_flags()
+            if flags_str:
+                print(f"\tflags: {flags_str}")
 
 
 if __name__ == "__main__":
