@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import BinaryIO, Optional
+from typing import Optional
 
-from simulation import update_simulation
-from utils import InstructionType, read_le16, to_signed
+from simulation import set_ip_register, update_simulation, get_ip_register, SIM_FLAGS
+from utils import InstructionType, read_le16, to_signed, grab_chunk_and_advance
 
 REG_LOOKUP = {
     0b0000: "al",
@@ -587,35 +587,55 @@ def get_operands(
         InstructionType.JCXZ,
     ):
         offset = to_signed(chunk[1], 8)
+        if simulate:
+            if operation == InstructionType.JMP_JNE:
+                if not SIM_FLAGS["Z"]:
+                    current_ip, _ = get_ip_register()
+                    set_ip_register(current_ip + offset)
         return f"{offset}"
 
     raise Exception(f"unsupported operation: {operation}")
 
 
-def read_additional_chunks(
-    file: BinaryIO, length_class: LengthClass, base_chunk: bytes
+def get_additional_chunks(
+    all_chunks: bytes, length_class: LengthClass
 ) -> Optional[bytes]:
-    additional_chunk = None
+    current_ip, _ = get_ip_register()
+    working_ip = current_ip + 1
+
+    base_chunk = all_chunks[current_ip : current_ip + 1]
+    additional_chunk = b""
+
     if length_class == LengthClass.REG_MEM:
-        additional_chunk = file.read(1)
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        additional_chunk += chunk
+
         mod = get_mod(additional_chunk[0])
         if mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
-                additional_chunk += file.read(2)
+                chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+                additional_chunk += chunk
         elif mod == 0b01:
-            additional_chunk += file.read(1)
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+            additional_chunk += chunk
         elif mod == 0b10:
-            additional_chunk += file.read(2)
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+            additional_chunk += chunk
     elif length_class == LengthClass.IMM_REG:
         w_bit = (base_chunk[0] >> 3) & 1
-        additional_chunk = file.read(2 if w_bit else 1)
+        amount_to_grab = 2 if w_bit else 1
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, amount_to_grab)
+        additional_chunk += chunk
     elif length_class == LengthClass.ACC_IMM:
         w_bit = base_chunk[0] & 1
-        additional_chunk = file.read(2 if w_bit else 1)
+        amount_to_grab = 2 if w_bit else 1
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, amount_to_grab)
+        additional_chunk += chunk
     elif length_class == LengthClass.IMM_MEM:
         w_bit = base_chunk[0] & 1
         binary_string = f"{base_chunk[0]:08b}"
+        immediate_size = 0
 
         if binary_string.startswith(IMM_TO_RM_OPCODE):
             s_bit = (base_chunk[0] >> 1) & 1
@@ -623,24 +643,33 @@ def read_additional_chunks(
         else:
             immediate_size = 2 if w_bit else 1
 
-        additional_chunk = file.read(1)
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        additional_chunk += chunk
         mod = get_mod(additional_chunk[0])
         if mod == 0b11:
-            additional_chunk += file.read(immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, immediate_size)
+            additional_chunk += chunk
         elif mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
-                additional_chunk += file.read(2)
-            additional_chunk += file.read(immediate_size)
+                chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+                additional_chunk += chunk
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, immediate_size)
+            additional_chunk += chunk
         elif mod == 0b01:
-            additional_chunk += file.read(1 + immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1 + immediate_size)
+            additional_chunk += chunk
         elif mod == 0b10:
-            additional_chunk += file.read(2 + immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2 + immediate_size)
+            additional_chunk += chunk
     elif length_class == LengthClass.MEM_ACC:
-        additional_chunk = file.read(2)
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+        additional_chunk += chunk
     elif length_class == LengthClass.ACC_MEM:
-        additional_chunk = file.read(2)
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+        additional_chunk += chunk
     elif length_class == LengthClass.JMP_SHORT:
-        additional_chunk = file.read(1)
+        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        additional_chunk += chunk
 
     return additional_chunk

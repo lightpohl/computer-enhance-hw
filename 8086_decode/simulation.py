@@ -2,10 +2,24 @@ from typing import Dict, Optional
 
 from utils import InstructionType
 
-SIM_REGISTERS: Dict[str, int] = {}
+PREV_IP_REGISTER = 0
+SIM_REGISTERS: Dict[str, int] = {
+    "ip": 0,
+}
 SIM_FLAGS: Dict[str, bool] = {"Z": False, "S": False}
 
 HALF_REGS = ["al", "bl", "cl", "dl", "ah", "bh", "ch", "dh"]
+
+
+def get_ip_register() -> tuple[int, int]:
+    return (SIM_REGISTERS["ip"], PREV_IP_REGISTER)
+
+
+def set_ip_register(new_val: int) -> tuple[int, int]:
+    global PREV_IP_REGISTER
+    PREV_IP_REGISTER = SIM_REGISTERS["ip"]
+    SIM_REGISTERS["ip"] = new_val
+    return (SIM_REGISTERS["ip"], PREV_IP_REGISTER)
 
 
 def get_half_reg(src: str) -> int:
@@ -52,6 +66,10 @@ def update_full_reg(dst: str, new_val: int):
     SIM_REGISTERS[dst] = new_val & 0xFFFF
 
     return f" ; {dst}:0x{prev:04x}->0x{SIM_REGISTERS[dst]:04x}"
+
+def format_ip() -> str:
+    current_ip, prev_ip = get_ip_register()
+    return f" ip:{prev_ip:#04x}->{current_ip:#04x}"
 
 
 def format_flags() -> str:
@@ -129,7 +147,7 @@ def update_simulation(
                 update_half_reg(dst, new_val)
                 if dst in HALF_REGS
                 else update_full_reg(dst, new_val)
-            )
+            ) + format_ip()
 
         if is_cmp:
             new_val = dst_val - src_val
@@ -143,9 +161,8 @@ def update_simulation(
                     if dst in HALF_REGS
                     else update_full_reg(dst, new_val)
                 )
+                + format_ip()
                 + update_flags(new_val, dst not in HALF_REGS)
-                if is_add or is_sub
-                else ""
             )
 
         if is_sub:
@@ -156,9 +173,8 @@ def update_simulation(
                     if dst in HALF_REGS
                     else update_full_reg(dst, new_val)
                 )
+                + format_ip()
                 + update_flags(new_val, dst not in HALF_REGS)
-                if is_add or is_sub
-                else ""
             )
 
         return ""
@@ -169,11 +185,11 @@ def update_simulation(
             update_half_reg(dst, new_val)
             if dst in HALF_REGS
             else update_full_reg(dst, new_val)
-        )
+        ) + format_ip()
 
     if is_cmp:
         new_val = dst_val - new_val
-        return f" ;{update_flags(new_val, dst not in HALF_REGS)}"
+        return f" ;{update_flags(new_val, dst not in HALF_REGS)}" + format_ip()
 
     if is_add:
         new_val = dst_val + immediate
@@ -181,7 +197,7 @@ def update_simulation(
             update_half_reg(dst, new_val)
             if dst in HALF_REGS
             else update_full_reg(dst, new_val)
-        ) + update_flags(new_val, dst not in HALF_REGS)
+        ) + update_flags(new_val, dst not in HALF_REGS) + format_ip()
 
     if is_sub:
         new_val = dst_val - immediate
@@ -189,6 +205,6 @@ def update_simulation(
             update_half_reg(dst, new_val)
             if dst in HALF_REGS
             else update_full_reg(dst, new_val)
-        ) + update_flags(new_val, dst not in HALF_REGS)
+        ) + update_flags(new_val, dst not in HALF_REGS) + format_ip()
 
     return ""

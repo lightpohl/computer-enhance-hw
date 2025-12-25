@@ -15,6 +15,11 @@ def to_signed(value: int, bits: int) -> int:
     return value
 
 
+def grab_chunk_and_advance(all_chunks: bytes, working_ip: int, amount: int) -> tuple[bytes, int]:
+    chunk = all_chunks[working_ip : working_ip + amount]
+    return chunk, working_ip + amount
+
+
 class InstructionType(str, Enum):
     MOV = "MOV"
     MOV_IMM = "MOV_IMM"
