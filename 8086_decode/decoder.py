@@ -588,9 +588,18 @@ def get_operands(
     ):
         offset = to_signed(chunk[1], 8)
         if simulate:
+            current_ip, _ = get_ip_register()
             if operation == InstructionType.JMP_JNE:
                 if not SIM_FLAGS["Z"]:
-                    current_ip, _ = get_ip_register()
+                    set_ip_register(current_ip + offset)
+            elif operation == InstructionType.JMP_JE:
+                if SIM_FLAGS["Z"]:
+                    set_ip_register(current_ip + offset)
+            elif operation == InstructionType.JMP_JNS:
+                if not SIM_FLAGS["S"]:
+                    set_ip_register(current_ip + offset)
+            elif operation == InstructionType.JMP_JS:
+                if SIM_FLAGS["S"]:
                     set_ip_register(current_ip + offset)
         return f"{offset}"
 
