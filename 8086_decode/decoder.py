@@ -385,6 +385,8 @@ def format_imm_mem_operands(chunk: bytes, w_bit: int, immediate: int) -> str:
             f"{format_memory_address(r_m_text, displacement)}, {size_text} {immediate}"
         )
 
+    return ""
+
 
 def get_operands(
     chunk: bytes, operation: InstructionType, simulate: Optional[bool]
