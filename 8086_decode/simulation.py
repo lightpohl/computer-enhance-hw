@@ -67,6 +67,7 @@ def update_full_reg(dst: str, new_val: int):
 
     return f" ; {dst}:0x{prev:04x}->0x{SIM_REGISTERS[dst]:04x}"
 
+
 def format_ip() -> str:
     current_ip, prev_ip = get_ip_register()
     return f" ip:{prev_ip:#04x}->{current_ip:#04x}"
@@ -179,32 +180,41 @@ def update_simulation(
 
         return ""
 
-    if is_mov:
-        new_val = immediate
-        return (
-            update_half_reg(dst, new_val)
-            if dst in HALF_REGS
-            else update_full_reg(dst, new_val)
-        ) + format_ip()
+    if immediate:
+        if is_mov:
+            new_val = immediate
+            return (
+                update_half_reg(dst, new_val)
+                if dst in HALF_REGS
+                else update_full_reg(dst, new_val)
+            ) + format_ip()
 
-    if is_cmp:
-        new_val = dst_val - new_val
-        return f" ;{update_flags(new_val, dst not in HALF_REGS)}" + format_ip()
+        if is_cmp:
+            new_val = dst_val - immediate
+            return f" ;{update_flags(new_val, dst not in HALF_REGS)}" + format_ip()
 
-    if is_add:
-        new_val = dst_val + immediate
-        return (
-            update_half_reg(dst, new_val)
-            if dst in HALF_REGS
-            else update_full_reg(dst, new_val)
-        ) + update_flags(new_val, dst not in HALF_REGS) + format_ip()
+        if is_add:
+            new_val = dst_val + immediate
+            return (
+                (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                )
+                + update_flags(new_val, dst not in HALF_REGS)
+                + format_ip()
+            )
 
-    if is_sub:
-        new_val = dst_val - immediate
-        return (
-            update_half_reg(dst, new_val)
-            if dst in HALF_REGS
-            else update_full_reg(dst, new_val)
-        ) + update_flags(new_val, dst not in HALF_REGS) + format_ip()
+        if is_sub:
+            new_val = dst_val - immediate
+            return (
+                (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                )
+                + update_flags(new_val, dst not in HALF_REGS)
+                + format_ip()
+            )
 
     return ""

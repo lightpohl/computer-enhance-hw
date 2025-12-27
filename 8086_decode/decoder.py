@@ -636,12 +636,16 @@ def get_additional_chunks(
     elif length_class == LengthClass.IMM_REG:
         w_bit = (base_chunk[0] >> 3) & 1
         amount_to_grab = 2 if w_bit else 1
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, amount_to_grab)
+        chunk, working_ip = grab_chunk_and_advance(
+            all_chunks, working_ip, amount_to_grab
+        )
         additional_chunk += chunk
     elif length_class == LengthClass.ACC_IMM:
         w_bit = base_chunk[0] & 1
         amount_to_grab = 2 if w_bit else 1
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, amount_to_grab)
+        chunk, working_ip = grab_chunk_and_advance(
+            all_chunks, working_ip, amount_to_grab
+        )
         additional_chunk += chunk
     elif length_class == LengthClass.IMM_MEM:
         w_bit = base_chunk[0] & 1
@@ -658,20 +662,28 @@ def get_additional_chunks(
         additional_chunk += chunk
         mod = get_mod(additional_chunk[0])
         if mod == 0b11:
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(
+                all_chunks, working_ip, immediate_size
+            )
             additional_chunk += chunk
         elif mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
                 chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
                 additional_chunk += chunk
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(
+                all_chunks, working_ip, immediate_size
+            )
             additional_chunk += chunk
         elif mod == 0b01:
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1 + immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(
+                all_chunks, working_ip, 1 + immediate_size
+            )
             additional_chunk += chunk
         elif mod == 0b10:
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2 + immediate_size)
+            chunk, working_ip = grab_chunk_and_advance(
+                all_chunks, working_ip, 2 + immediate_size
+            )
             additional_chunk += chunk
     elif length_class == LengthClass.MEM_ACC:
         chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
