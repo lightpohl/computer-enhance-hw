@@ -2,24 +2,12 @@ from typing import Dict, Optional
 
 from utils import InstructionType
 
-PREV_IP_REGISTER = 0
+PREV_SIM_REGISTERS: Dict[str, int] = {"ip": 0}
 SIM_REGISTERS: Dict[str, int] = {
     "ip": 0,
 }
 SIM_FLAGS: Dict[str, bool] = {"Z": False, "S": False}
-
 HALF_REGS = ["al", "bl", "cl", "dl", "ah", "bh", "ch", "dh"]
-
-
-def get_ip_register() -> tuple[int, int]:
-    return (SIM_REGISTERS["ip"], PREV_IP_REGISTER)
-
-
-def set_ip_register(new_val: int) -> tuple[int, int]:
-    global PREV_IP_REGISTER
-    PREV_IP_REGISTER = SIM_REGISTERS["ip"]
-    SIM_REGISTERS["ip"] = new_val
-    return (SIM_REGISTERS["ip"], PREV_IP_REGISTER)
 
 
 def get_half_reg(src: str) -> int:
@@ -42,7 +30,12 @@ def update_half_reg(dst: str, new_val: int):
     if full_reg not in SIM_REGISTERS:
         SIM_REGISTERS[full_reg] = 0
 
+    if full_reg not in PREV_SIM_REGISTERS:
+        PREV_SIM_REGISTERS[full_reg] = 0
+
     prev = SIM_REGISTERS[full_reg]
+    PREV_SIM_REGISTERS[full_reg] = prev
+
     if dst[-1] == "l":
         SIM_REGISTERS[full_reg] = (prev & 0xFF00) | (new_val & 0xFF)
     else:
@@ -62,10 +55,24 @@ def update_full_reg(dst: str, new_val: int):
     if dst not in SIM_REGISTERS:
         SIM_REGISTERS[dst] = 0
 
+    if dst not in PREV_SIM_REGISTERS:
+        PREV_SIM_REGISTERS[dst] = 0
+
     prev = SIM_REGISTERS[dst]
+    PREV_SIM_REGISTERS[dst] = prev
     SIM_REGISTERS[dst] = new_val & 0xFFFF
 
     return f" ; {dst}:0x{prev:04x}->0x{SIM_REGISTERS[dst]:04x}"
+
+
+def get_ip_register() -> tuple[int, int]:
+    return (SIM_REGISTERS["ip"], PREV_SIM_REGISTERS["ip"])
+
+
+def set_ip_register(new_val: int) -> tuple[int, int]:
+    PREV_SIM_REGISTERS["ip"] = SIM_REGISTERS["ip"]
+    SIM_REGISTERS["ip"] = new_val
+    return (SIM_REGISTERS["ip"], PREV_SIM_REGISTERS["ip"])
 
 
 def format_ip() -> str:
