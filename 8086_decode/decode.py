@@ -8,7 +8,14 @@ from decoder import (
     get_operation,
     get_additional_chunks,
 )
-from simulation import SIM_REGISTERS, get_ip_register, set_ip_register, format_flags
+from simulation import (
+    SIM_REGISTERS,
+    get_ip_register,
+    set_ip_register,
+    format_flags,
+    load_code,
+    get_code_byte,
+)
 
 
 def main():
@@ -25,16 +32,22 @@ def main():
         print(f"; {file.name}:")
         print("bits 16")
 
-        all_chunks = file.read()
+        code_bytes = file.read()
+        code_length = len(code_bytes)
+
+        load_code(code_bytes)
+        set_ip_register(0)
+
         while True:
             current_ip, _ = get_ip_register()
 
-            if current_ip >= len(all_chunks):
+            if current_ip >= code_length:
                 break
 
-            chunk = all_chunks[current_ip : current_ip + 1]
+            chunk = bytes([get_code_byte(current_ip)])
+
             length_class = get_length_class(chunk[0])
-            additional_chunk = get_additional_chunks(all_chunks, length_class)
+            additional_chunk = get_additional_chunks(length_class)
 
             if additional_chunk:
                 chunk += additional_chunk

@@ -7,8 +7,10 @@ from simulation import (
     get_ip_register,
     SIM_FLAGS,
     calc_effective_address,
+    get_code_byte,
+    grab_chunk_from_memory,
 )
-from utils import InstructionType, read_le16, to_signed, grab_chunk_and_advance
+from utils import InstructionType, read_le16, to_signed
 
 REG_LOOKUP = {
     0b0000: "al",
@@ -675,44 +677,38 @@ def get_operands(
     raise Exception(f"unsupported operation: {operation}")
 
 
-def get_additional_chunks(
-    all_chunks: bytes, length_class: LengthClass
-) -> Optional[bytes]:
+def get_additional_chunks(length_class: LengthClass) -> Optional[bytes]:
     current_ip, _ = get_ip_register()
     working_ip = current_ip + 1
 
-    base_chunk = all_chunks[current_ip : current_ip + 1]
+    base_chunk = bytes([get_code_byte(current_ip)])
     additional_chunk = b""
 
     if length_class == LengthClass.REG_MEM:
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        chunk, working_ip = grab_chunk_from_memory(working_ip, 1)
         additional_chunk += chunk
 
         mod = get_mod(additional_chunk[0])
         if mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
-                chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+                chunk, working_ip = grab_chunk_from_memory(working_ip, 2)
                 additional_chunk += chunk
         elif mod == 0b01:
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+            chunk, working_ip = grab_chunk_from_memory(working_ip, 1)
             additional_chunk += chunk
         elif mod == 0b10:
-            chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+            chunk, working_ip = grab_chunk_from_memory(working_ip, 2)
             additional_chunk += chunk
     elif length_class == LengthClass.IMM_REG:
         w_bit = (base_chunk[0] >> 3) & 1
         amount_to_grab = 2 if w_bit else 1
-        chunk, working_ip = grab_chunk_and_advance(
-            all_chunks, working_ip, amount_to_grab
-        )
+        chunk, working_ip = grab_chunk_from_memory(working_ip, amount_to_grab)
         additional_chunk += chunk
     elif length_class == LengthClass.ACC_IMM:
         w_bit = base_chunk[0] & 1
         amount_to_grab = 2 if w_bit else 1
-        chunk, working_ip = grab_chunk_and_advance(
-            all_chunks, working_ip, amount_to_grab
-        )
+        chunk, working_ip = grab_chunk_from_memory(working_ip, amount_to_grab)
         additional_chunk += chunk
     elif length_class == LengthClass.IMM_MEM:
         w_bit = base_chunk[0] & 1
@@ -724,41 +720,33 @@ def get_additional_chunks(
         else:
             immediate_size = 2 if w_bit else 1
 
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        chunk, working_ip = grab_chunk_from_memory(working_ip, 1)
         additional_chunk += chunk
         mod = get_mod(additional_chunk[0])
         if mod == 0b11:
-            chunk, working_ip = grab_chunk_and_advance(
-                all_chunks, working_ip, immediate_size
-            )
+            chunk, working_ip = grab_chunk_from_memory(working_ip, immediate_size)
             additional_chunk += chunk
         elif mod == 0b00:
             r_m = additional_chunk[0] & 0b111
             if r_m == 0b110:
-                chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+                chunk, working_ip = grab_chunk_from_memory(working_ip, 2)
                 additional_chunk += chunk
-            chunk, working_ip = grab_chunk_and_advance(
-                all_chunks, working_ip, immediate_size
-            )
+            chunk, working_ip = grab_chunk_from_memory(working_ip, immediate_size)
             additional_chunk += chunk
         elif mod == 0b01:
-            chunk, working_ip = grab_chunk_and_advance(
-                all_chunks, working_ip, 1 + immediate_size
-            )
+            chunk, working_ip = grab_chunk_from_memory(working_ip, 1 + immediate_size)
             additional_chunk += chunk
         elif mod == 0b10:
-            chunk, working_ip = grab_chunk_and_advance(
-                all_chunks, working_ip, 2 + immediate_size
-            )
+            chunk, working_ip = grab_chunk_from_memory(working_ip, 2 + immediate_size)
             additional_chunk += chunk
     elif length_class == LengthClass.MEM_ACC:
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+        chunk, working_ip = grab_chunk_from_memory(working_ip, 2)
         additional_chunk += chunk
     elif length_class == LengthClass.ACC_MEM:
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 2)
+        chunk, working_ip = grab_chunk_from_memory(working_ip, 2)
         additional_chunk += chunk
     elif length_class == LengthClass.JMP_SHORT:
-        chunk, working_ip = grab_chunk_and_advance(all_chunks, working_ip, 1)
+        chunk, working_ip = grab_chunk_from_memory(working_ip, 1)
         additional_chunk += chunk
 
     return additional_chunk

@@ -87,6 +87,22 @@ def set_memory(loc: int, new_val: int):
     SIM_MEMORY[loc + 1] = (new_val >> 8) & 0xFF
 
 
+def load_code(code: bytes):
+    for i, byte in enumerate(code):
+        SIM_MEMORY[i] = byte
+
+
+def get_code_byte(address: int) -> int:
+    if address >= len(SIM_MEMORY):
+        raise Exception(f"Address {address} exceeds memory size")
+    return SIM_MEMORY[address]
+
+
+def grab_chunk_from_memory(working_ip: int, amount: int) -> tuple[bytes, int]:
+    chunk = bytes(get_code_byte(working_ip + i) for i in range(amount))
+    return chunk, working_ip + amount
+
+
 R_M_BASE_REGS = {
     0b000: ("bx", "si"),
     0b001: ("bx", "di"),
