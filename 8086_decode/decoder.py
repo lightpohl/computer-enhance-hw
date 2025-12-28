@@ -717,7 +717,6 @@ def get_additional_chunks(
     elif length_class == LengthClass.IMM_MEM:
         w_bit = base_chunk[0] & 1
         binary_string = f"{base_chunk[0]:08b}"
-        immediate_size = 0
 
         if binary_string.startswith(IMM_TO_RM_OPCODE):
             s_bit = (base_chunk[0] >> 1) & 1

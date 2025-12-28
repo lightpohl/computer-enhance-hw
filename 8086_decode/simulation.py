@@ -155,7 +155,6 @@ def update_simulation(
     is_mem_src = src_addr is not None
     is_mem_dst = dst_addr is not None
 
-    dst_val = 0
     if is_mem_dst:
         dst_val = get_memory(dst_addr)
     else:
@@ -188,7 +187,6 @@ def update_simulation(
     )
 
     if src:
-        src_val = 0
         if is_mem_src:
             src_val = get_memory(src_addr)
         else:
