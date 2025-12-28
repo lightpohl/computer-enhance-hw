@@ -2,12 +2,13 @@ from typing import Dict, Optional
 
 from utils import InstructionType
 
+HALF_REGS = ["al", "bl", "cl", "dl", "ah", "bh", "ch", "dh"]
 PREV_SIM_REGISTERS: Dict[str, int] = {"ip": 0}
 SIM_REGISTERS: Dict[str, int] = {
     "ip": 0,
 }
 SIM_FLAGS: Dict[str, bool] = {"Z": False, "S": False}
-HALF_REGS = ["al", "bl", "cl", "dl", "ah", "bh", "ch", "dh"]
+SIM_MEMORY: list[int] = [0] * (1024 * 1024)
 
 
 def get_half_reg(src: str) -> int:
@@ -75,6 +76,37 @@ def set_ip_register(new_val: int) -> tuple[int, int]:
     return (SIM_REGISTERS["ip"], PREV_SIM_REGISTERS["ip"])
 
 
+def get_memory(loc: int) -> int:
+    low = SIM_MEMORY[loc]
+    high = SIM_MEMORY[loc + 1]
+    return (high << 8) | low
+
+
+def set_memory(loc: int, new_val: int):
+    SIM_MEMORY[loc] = new_val & 0xFF
+    SIM_MEMORY[loc + 1] = (new_val >> 8) & 0xFF
+
+
+R_M_BASE_REGS = {
+    0b000: ("bx", "si"),
+    0b001: ("bx", "di"),
+    0b010: ("bp", "si"),
+    0b011: ("bp", "di"),
+    0b100: ("si", None),
+    0b101: ("di", None),
+    0b110: ("bp", None),
+    0b111: ("bx", None),
+}
+
+
+def calc_effective_address(r_m: int, displacement: int) -> int:
+    base_reg, index_reg = R_M_BASE_REGS[r_m]
+    addr = get_full_reg(base_reg) + displacement
+    if index_reg:
+        addr += get_full_reg(index_reg)
+    return addr & 0xFFFF
+
+
 def format_ip() -> str:
     current_ip, prev_ip = get_ip_register()
     return f" ip:{prev_ip:#04x}->{current_ip:#04x}"
@@ -114,11 +146,20 @@ def update_simulation(
     operation: InstructionType,
     src: Optional[str] = None,
     immediate: Optional[int] = None,
+    src_addr: Optional[int] = None,
+    dst_addr: Optional[int] = None,
 ) -> str:
     if src is None and immediate is None:
         raise Exception("src or immediate must be provided")
 
-    dst_val = get_half_reg(dst) if dst in HALF_REGS else get_full_reg(dst)
+    is_mem_src = src_addr is not None
+    is_mem_dst = dst_addr is not None
+
+    dst_val = 0
+    if is_mem_dst:
+        dst_val = get_memory(dst_addr)
+    else:
+        dst_val = get_half_reg(dst) if dst in HALF_REGS else get_full_reg(dst)
 
     is_mov = operation in (
         InstructionType.MOV,
@@ -147,81 +188,111 @@ def update_simulation(
     )
 
     if src:
-        src_val = get_half_reg(src) if src in HALF_REGS else get_full_reg(src)
+        src_val = 0
+        if is_mem_src:
+            src_val = get_memory(src_addr)
+        else:
+            src_val = get_half_reg(src) if src in HALF_REGS else get_full_reg(src)
 
         if is_mov:
             new_val = src_val
-            return (
-                update_half_reg(dst, new_val)
-                if dst in HALF_REGS
-                else update_full_reg(dst, new_val)
-            ) + format_ip()
+
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip()
+            else:
+                return (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                ) + format_ip()
 
         if is_cmp:
             new_val = dst_val - src_val
-            return f" ;{update_flags(new_val, dst not in HALF_REGS)}"
+            return f" ;{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
 
         if is_add:
             new_val = dst_val + src_val
-            return (
-                (
-                    update_half_reg(dst, new_val)
-                    if dst in HALF_REGS
-                    else update_full_reg(dst, new_val)
+
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip() + update_flags(new_val, True)
+            else:
+                return (
+                    (
+                        update_half_reg(dst, new_val)
+                        if dst in HALF_REGS
+                        else update_full_reg(dst, new_val)
+                    )
+                    + format_ip()
+                    + update_flags(new_val, dst not in HALF_REGS)
                 )
-                + format_ip()
-                + update_flags(new_val, dst not in HALF_REGS)
-            )
 
         if is_sub:
             new_val = dst_val - src_val
-            return (
-                (
-                    update_half_reg(dst, new_val)
-                    if dst in HALF_REGS
-                    else update_full_reg(dst, new_val)
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip() + update_flags(new_val, True)
+            else:
+                return (
+                    (
+                        update_half_reg(dst, new_val)
+                        if dst in HALF_REGS
+                        else update_full_reg(dst, new_val)
+                    )
+                    + format_ip()
+                    + update_flags(new_val, dst not in HALF_REGS)
                 )
-                + format_ip()
-                + update_flags(new_val, dst not in HALF_REGS)
-            )
 
         return ""
 
-    if immediate:
+    if immediate is not None:
         if is_mov:
             new_val = immediate
-            return (
-                update_half_reg(dst, new_val)
-                if dst in HALF_REGS
-                else update_full_reg(dst, new_val)
-            ) + format_ip()
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip()
+            else:
+                return (
+                    update_half_reg(dst, new_val)
+                    if dst in HALF_REGS
+                    else update_full_reg(dst, new_val)
+                ) + format_ip()
 
         if is_cmp:
             new_val = dst_val - immediate
-            return f" ;{update_flags(new_val, dst not in HALF_REGS)}" + format_ip()
+            return f" ;{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
 
         if is_add:
             new_val = dst_val + immediate
-            return (
-                (
-                    update_half_reg(dst, new_val)
-                    if dst in HALF_REGS
-                    else update_full_reg(dst, new_val)
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip() + update_flags(new_val, True)
+            else:
+                return (
+                    (
+                        update_half_reg(dst, new_val)
+                        if dst in HALF_REGS
+                        else update_full_reg(dst, new_val)
+                    )
+                    + format_ip()
+                    + update_flags(new_val, dst not in HALF_REGS)
                 )
-                + update_flags(new_val, dst not in HALF_REGS)
-                + format_ip()
-            )
 
         if is_sub:
             new_val = dst_val - immediate
-            return (
-                (
-                    update_half_reg(dst, new_val)
-                    if dst in HALF_REGS
-                    else update_full_reg(dst, new_val)
+            if is_mem_dst:
+                set_memory(dst_addr, new_val)
+                return " ;" + format_ip() + update_flags(new_val, True)
+            else:
+                return (
+                    (
+                        update_half_reg(dst, new_val)
+                        if dst in HALF_REGS
+                        else update_full_reg(dst, new_val)
+                    )
+                    + format_ip()
+                    + update_flags(new_val, dst not in HALF_REGS)
                 )
-                + update_flags(new_val, dst not in HALF_REGS)
-                + format_ip()
-            )
 
     return ""

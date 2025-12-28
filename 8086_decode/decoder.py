@@ -1,7 +1,13 @@
 from enum import Enum
 from typing import Optional
 
-from simulation import set_ip_register, update_simulation, get_ip_register, SIM_FLAGS
+from simulation import (
+    set_ip_register,
+    update_simulation,
+    get_ip_register,
+    SIM_FLAGS,
+    calc_effective_address,
+)
 from utils import InstructionType, read_le16, to_signed, grab_chunk_and_advance
 
 REG_LOOKUP = {
@@ -435,27 +441,43 @@ def get_operands(
             if r_m == 0b110:
                 displacement = read_le16(chunk[2], chunk[3])
                 mem_addr = format_memory_address(str(displacement), 0)
+                effective_addr = displacement
             else:
                 r_m_text = R_M_LOOKUP[r_m]
                 mem_addr = format_memory_address(r_m_text, 0)
+                effective_addr = calc_effective_address(r_m, 0)
 
+            result = ""
             if is_seg_reg:
                 if d_bit:
-                    return f"{seg_reg}, {mem_addr}"
+                    result = f"{seg_reg}, {mem_addr}"
                 else:
-                    return f"{mem_addr}, {seg_reg}"
+                    result = f"{mem_addr}, {seg_reg}"
             else:
                 if d_bit:
                     dst = get_reg(d_bit, w_bit, True, chunk[1])
-                    return f"{dst}, {mem_addr}"
+                    result = f"{dst}, {mem_addr}"
+
+                    if simulate:
+                        result += update_simulation(
+                            dst, operation, src=mem_addr, src_addr=effective_addr
+                        )
                 else:
                     src = get_reg(d_bit, w_bit, False, chunk[1])
-                    return f"{mem_addr}, {src}"
+                    result = f"{mem_addr}, {src}"
+
+                    if simulate:
+                        result += update_simulation(
+                            mem_addr, operation, src=src, dst_addr=effective_addr
+                        )
+
+            return result
         elif mod == 0b01:
             r_m = chunk[1] & 0b111
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(chunk[2], 8)
             mem_addr = format_memory_address(r_m_text, displacement)
+            effective_addr = calc_effective_address(r_m, displacement)
 
             if is_seg_reg:
                 if d_bit:
@@ -465,15 +487,26 @@ def get_operands(
             else:
                 if d_bit:
                     dst = get_reg(d_bit, w_bit, True, chunk[1])
-                    return f"{dst}, {mem_addr}"
+                    result = f"{dst}, {mem_addr}"
+                    if simulate:
+                        result += update_simulation(
+                            dst, operation, src=mem_addr, src_addr=effective_addr
+                        )
+                    return result
                 else:
                     src = get_reg(d_bit, w_bit, False, chunk[1])
-                    return f"{mem_addr}, {src}"
+                    result = f"{mem_addr}, {src}"
+                    if simulate:
+                        result += update_simulation(
+                            mem_addr, operation, src=src, dst_addr=effective_addr
+                        )
+                    return result
         elif mod == 0b10:
             r_m = chunk[1] & 0b111
             r_m_text = R_M_LOOKUP[r_m]
             displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
             mem_addr = format_memory_address(r_m_text, displacement)
+            effective_addr = calc_effective_address(r_m, displacement)
 
             if is_seg_reg:
                 if d_bit:
@@ -483,10 +516,20 @@ def get_operands(
             else:
                 if d_bit:
                     dst = get_reg(d_bit, w_bit, True, chunk[1])
-                    return f"{dst}, {mem_addr}"
+                    result = f"{dst}, {mem_addr}"
+                    if simulate:
+                        result += update_simulation(
+                            dst, operation, src=mem_addr, src_addr=effective_addr
+                        )
+                    return result
                 else:
                     src = get_reg(d_bit, w_bit, False, chunk[1])
-                    return f"{mem_addr}, {src}"
+                    result = f"{mem_addr}, {src}"
+                    if simulate:
+                        result += update_simulation(
+                            mem_addr, operation, src=src, dst_addr=effective_addr
+                        )
+                    return result
 
     if operation == InstructionType.MOV_IMM:
         w_bit = (chunk[0] >> 3) & 1
@@ -518,8 +561,32 @@ def get_operands(
             immediate_raw = read_le16(chunk[-2], chunk[-1])
             immediate = to_signed(immediate_raw, 16)
         else:
-            immediate = to_signed(chunk[-1], 8)
-        return format_imm_mem_operands(chunk, w_bit, immediate)
+            immediate_raw = chunk[-1]
+            immediate = to_signed(immediate_raw, 8)
+
+        mod = get_mod(chunk[1])
+        r_m = chunk[1] & 0b111
+
+        if mod == 0b00:
+            if r_m == 0b110:
+                effective_addr = read_le16(chunk[2], chunk[3])
+            else:
+                effective_addr = calc_effective_address(r_m, 0)
+        elif mod == 0b01:
+            displacement = to_signed(chunk[2], 8)
+            effective_addr = calc_effective_address(r_m, displacement)
+        elif mod == 0b10:
+            displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
+            effective_addr = calc_effective_address(r_m, displacement)
+        else:
+            effective_addr = None
+
+        result = format_imm_mem_operands(chunk, w_bit, immediate)
+        if simulate and effective_addr is not None:
+            result += update_simulation(
+                "", operation, immediate=immediate_raw, dst_addr=effective_addr
+            )
+        return result
 
     if operation in (
         InstructionType.ADD_IMM_MEM,
