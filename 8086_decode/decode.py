@@ -3,18 +3,19 @@ import sys
 
 from decoder import (
     INSTRUCTION_TYPE_TO_OP,
+    get_additional_chunks,
     get_length_class,
     get_operands,
     get_operation,
-    get_additional_chunks,
 )
 from simulation import (
+    SIM_MEMORY,
     SIM_REGISTERS,
-    get_ip_register,
-    set_ip_register,
     format_flags,
-    load_code,
     get_code_byte,
+    get_ip_register,
+    load_code,
+    set_ip_register,
 )
 
 
@@ -22,6 +23,11 @@ def main():
     parser = argparse.ArgumentParser(prog="8086 Decoder")
     parser.add_argument("-f", "--file")
     parser.add_argument("-s", "--simulate", action="store_true")
+    parser.add_argument(
+        "-d",
+        "--dump",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     if args.file is None:
@@ -65,6 +71,11 @@ def main():
             flags_str = format_flags()
             if flags_str:
                 print(f"\tflags: {flags_str}")
+
+        if args.dump:
+            dump_file = args.file + ".data"
+            with open(dump_file, "wb") as f:
+                f.write(bytes(SIM_MEMORY))
 
 
 if __name__ == "__main__":
