@@ -436,7 +436,8 @@ def get_operands(
 
             result = f"{dst}, {src}"
             if simulate:
-                result += update_simulation(dst, operation, src=src)
+                r_m = chunk[1] & 0b111
+                result += update_simulation(dst, operation, src=src, mod=mod, r_m=r_m)
             return result
         elif mod == 0b00:
             r_m = chunk[1] & 0b111
@@ -445,6 +446,7 @@ def get_operands(
                 mem_addr = format_memory_address(str(displacement), 0)
                 effective_addr = displacement
             else:
+                displacement = 0
                 r_m_text = R_M_LOOKUP[r_m]
                 mem_addr = format_memory_address(r_m_text, 0)
                 effective_addr = calc_effective_address(r_m, 0)
@@ -462,7 +464,7 @@ def get_operands(
 
                     if simulate:
                         result += update_simulation(
-                            dst, operation, src=mem_addr, src_addr=effective_addr
+                            dst, operation, src=mem_addr, src_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
                 else:
                     src = get_reg(d_bit, w_bit, False, chunk[1])
@@ -470,7 +472,7 @@ def get_operands(
 
                     if simulate:
                         result += update_simulation(
-                            mem_addr, operation, src=src, dst_addr=effective_addr
+                            mem_addr, operation, src=src, dst_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
 
             return result
@@ -492,7 +494,7 @@ def get_operands(
                     result = f"{dst}, {mem_addr}"
                     if simulate:
                         result += update_simulation(
-                            dst, operation, src=mem_addr, src_addr=effective_addr
+                            dst, operation, src=mem_addr, src_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
                     return result
                 else:
@@ -500,7 +502,7 @@ def get_operands(
                     result = f"{mem_addr}, {src}"
                     if simulate:
                         result += update_simulation(
-                            mem_addr, operation, src=src, dst_addr=effective_addr
+                            mem_addr, operation, src=src, dst_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
                     return result
         elif mod == 0b10:
@@ -521,7 +523,7 @@ def get_operands(
                     result = f"{dst}, {mem_addr}"
                     if simulate:
                         result += update_simulation(
-                            dst, operation, src=mem_addr, src_addr=effective_addr
+                            dst, operation, src=mem_addr, src_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
                     return result
                 else:
@@ -529,7 +531,7 @@ def get_operands(
                     result = f"{mem_addr}, {src}"
                     if simulate:
                         result += update_simulation(
-                            mem_addr, operation, src=src, dst_addr=effective_addr
+                            mem_addr, operation, src=src, dst_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
                         )
                     return result
 
@@ -541,7 +543,7 @@ def get_operands(
 
         result = f"{dst}, {immediate}"
         if simulate:
-            result += update_simulation(dst, operation, immediate=data)
+            result += update_simulation(dst, operation, immediate=data, mod=None, r_m=None)
 
         return result
 
@@ -571,8 +573,10 @@ def get_operands(
 
         if mod == 0b00:
             if r_m == 0b110:
-                effective_addr = read_le16(chunk[2], chunk[3])
+                displacement = read_le16(chunk[2], chunk[3])
+                effective_addr = displacement
             else:
+                displacement = 0
                 effective_addr = calc_effective_address(r_m, 0)
         elif mod == 0b01:
             displacement = to_signed(chunk[2], 8)
@@ -581,12 +585,13 @@ def get_operands(
             displacement = to_signed(read_le16(chunk[2], chunk[3]), 16)
             effective_addr = calc_effective_address(r_m, displacement)
         else:
+            displacement = 0
             effective_addr = None
 
         result = format_imm_mem_operands(chunk, w_bit, immediate)
         if simulate and effective_addr is not None:
             result += update_simulation(
-                "", operation, immediate=immediate_raw, dst_addr=effective_addr
+                "", operation, immediate=immediate_raw, dst_addr=effective_addr, mod=mod, r_m=r_m, displacement=displacement
             )
         return result
 
@@ -623,7 +628,7 @@ def get_operands(
 
         result = format_imm_mem_operands(chunk, w_bit, immediate)
         if simulate and dst:
-            result += update_simulation(dst, operation, immediate=immediate_for_sim)
+            result += update_simulation(dst, operation, immediate=immediate_for_sim, mod=mod, r_m=r_m)
 
         return result
 

@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from utils import InstructionType
 
@@ -9,6 +9,7 @@ SIM_REGISTERS: Dict[str, int] = {
 }
 SIM_FLAGS: Dict[str, bool] = {"Z": False, "S": False}
 SIM_MEMORY: list[int] = [0] * (1024 * 1024)
+SIM_CYCLES: int = 0
 
 
 def get_half_reg(src: str) -> int:
@@ -164,12 +165,22 @@ def update_simulation(
     immediate: Optional[int] = None,
     src_addr: Optional[int] = None,
     dst_addr: Optional[int] = None,
+    mod: Optional[int] = None,
+    r_m: Optional[int] = None,
+    displacement: int = 0,
 ) -> str:
+    global SIM_CYCLES
     if src is None and immediate is None:
         raise Exception("src or immediate must be provided")
 
     is_mem_src = src_addr is not None
     is_mem_dst = dst_addr is not None
+
+    cycles, breakdown = estimate_clocks(operation, mod, r_m, is_mem_dst, displacement)
+    SIM_CYCLES += cycles
+    comment = f" ; Clocks: +{cycles} = {SIM_CYCLES}"
+    if "+" in breakdown:
+        comment += f" ({breakdown})"
 
     if is_mem_dst:
         dst_val = get_memory(dst_addr)
@@ -213,24 +224,24 @@ def update_simulation(
 
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip()
+                return comment + " |" + format_ip()
             else:
                 return (
                     update_half_reg(dst, new_val)
                     if dst in HALF_REGS
                     else update_full_reg(dst, new_val)
-                ) + format_ip()
+                ) + comment + " |" + format_ip()
 
         if is_cmp:
             new_val = dst_val - src_val
-            return f" ;{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
+            return comment + f" |{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
 
         if is_add:
             new_val = dst_val + src_val
 
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip() + update_flags(new_val, True)
+                return comment + " |" + format_ip() + update_flags(new_val, True)
             else:
                 return (
                     (
@@ -238,7 +249,8 @@ def update_simulation(
                         if dst in HALF_REGS
                         else update_full_reg(dst, new_val)
                     )
-                    + format_ip()
+                    + comment
+                    + " |" + format_ip()
                     + update_flags(new_val, dst not in HALF_REGS)
                 )
 
@@ -246,7 +258,7 @@ def update_simulation(
             new_val = dst_val - src_val
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip() + update_flags(new_val, True)
+                return comment + " |" + format_ip() + update_flags(new_val, True)
             else:
                 return (
                     (
@@ -254,34 +266,35 @@ def update_simulation(
                         if dst in HALF_REGS
                         else update_full_reg(dst, new_val)
                     )
-                    + format_ip()
+                    + comment
+                    + " |" + format_ip()
                     + update_flags(new_val, dst not in HALF_REGS)
                 )
 
-        return ""
+        return comment
 
     if immediate is not None:
         if is_mov:
             new_val = immediate
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip()
+                return comment + " |" + format_ip()
             else:
                 return (
                     update_half_reg(dst, new_val)
                     if dst in HALF_REGS
                     else update_full_reg(dst, new_val)
-                ) + format_ip()
+                ) + comment + " |" + format_ip()
 
         if is_cmp:
             new_val = dst_val - immediate
-            return f" ;{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
+            return comment + f" |{format_ip()}{update_flags(new_val, is_mem_dst or dst not in HALF_REGS)}"
 
         if is_add:
             new_val = dst_val + immediate
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip() + update_flags(new_val, True)
+                return comment + " |" + format_ip() + update_flags(new_val, True)
             else:
                 return (
                     (
@@ -289,7 +302,8 @@ def update_simulation(
                         if dst in HALF_REGS
                         else update_full_reg(dst, new_val)
                     )
-                    + format_ip()
+                    + comment
+                    + " |" + format_ip()
                     + update_flags(new_val, dst not in HALF_REGS)
                 )
 
@@ -297,7 +311,7 @@ def update_simulation(
             new_val = dst_val - immediate
             if is_mem_dst:
                 set_memory(dst_addr, new_val)
-                return " ;" + format_ip() + update_flags(new_val, True)
+                return comment + " |" + format_ip() + update_flags(new_val, True)
             else:
                 return (
                     (
@@ -305,8 +319,151 @@ def update_simulation(
                         if dst in HALF_REGS
                         else update_full_reg(dst, new_val)
                     )
-                    + format_ip()
+                    + comment
+                    + " |" + format_ip()
                     + update_flags(new_val, dst not in HALF_REGS)
                 )
 
-    return ""
+    return comment
+
+
+def calc_ea_cycles(mod: int, r_m: int, displacement: int = 0) -> int:
+    if mod == 0b11:
+        return 0
+    elif mod == 0b00:
+        if r_m == 0b110:
+            return 6
+        else:
+            return 5
+    elif mod == 0b01:
+        if displacement == 0:
+            return 5
+        return 7
+    elif mod == 0b10:
+        return 9
+    return 0
+
+
+def estimate_clocks(
+    instruction_type: InstructionType,
+    mod: Optional[int] = None,
+    r_m: Optional[int] = None,
+    is_memory_dst: bool = False,
+    displacement: int = 0,
+) -> Tuple[int, str]:
+    ea_cycles = calc_ea_cycles(mod, r_m, displacement) if mod is not None and r_m is not None else 0
+    has_memory = mod is not None and mod != 0b11
+
+    if instruction_type == InstructionType.MOV:
+        if not has_memory:
+            base = 2
+            return (base, str(base))
+        elif is_memory_dst:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 8
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.MOV_IMM:
+        return (4, "4")
+    elif instruction_type == InstructionType.MOV_IMM_MEM:
+        base = 10
+        return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.MOV_MEM_ACC:
+        return (10, "10")
+    elif instruction_type == InstructionType.MOV_ACC_MEM:
+        return (10, "10")
+    elif instruction_type == InstructionType.MOV_SEG_REG:
+        if not has_memory:
+            return (2, "2")
+        elif is_memory_dst:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 8
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.MOV_REG_SEG:
+        if not has_memory:
+            return (2, "2")
+        elif is_memory_dst:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 8
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.ADD:
+        if not has_memory:
+            return (3, "3")
+        elif is_memory_dst:
+            base = 16
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.ADD_IMM_MEM:
+        if mod == 0b11:
+            return (4, "4")
+        else:
+            base = 17
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.ADD_IMM_ACC:
+        return (4, "4")
+    elif instruction_type == InstructionType.SUB:
+        if not has_memory:
+            return (3, "3")
+        elif is_memory_dst:
+            base = 16
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.SUB_IMM_MEM:
+        if mod == 0b11:
+            return (4, "4")
+        else:
+            base = 17
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.SUB_IMM_ACC:
+        return (4, "4")
+    elif instruction_type == InstructionType.CMP:
+        if not has_memory:
+            return (3, "3")
+        elif is_memory_dst:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+        else:
+            base = 9
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.CMP_IMM_MEM:
+        if mod == 0b11:
+            return (4, "4")
+        else:
+            base = 10
+            return (base + ea_cycles, f"{base} + {ea_cycles}ea")
+    elif instruction_type == InstructionType.CMP_IMM_ACC:
+        return (4, "4")
+    elif instruction_type in (
+        InstructionType.JMP_JE,
+        InstructionType.JMP_JL,
+        InstructionType.JMP_JLE,
+        InstructionType.JMP_JB,
+        InstructionType.JMP_JBE,
+        InstructionType.JMP_JP,
+        InstructionType.JMP_JO,
+        InstructionType.JMP_JS,
+        InstructionType.JMP_JNE,
+        InstructionType.JMP_JNL,
+        InstructionType.JMP_JNLE,
+        InstructionType.JMP_JNB,
+        InstructionType.JMP_JNBE,
+        InstructionType.JMP_JNP,
+        InstructionType.JMP_JNO,
+        InstructionType.JMP_JNS,
+    ):
+        return (16, "16")
+    elif instruction_type in (InstructionType.LOOP, InstructionType.LOOPZ, InstructionType.LOOPNZ):
+        return (17, "17")
+    elif instruction_type == InstructionType.JCXZ:
+        return (18, "18")
+
+    return (0, "0")
